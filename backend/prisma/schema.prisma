@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          String    @default("student")
+  firstName     String?   @map("first_name")
+  lastName      String?   @map("last_name")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  aiInteractions AIInteraction[]
+  auditLogs      AuditLog[]
+  uploadedDocs   Document[]      @relation("UploadedBy")
+  createdStudents Student[]      @relation("CreatedBy")
+
+  @@map("users")
+}
+
+model Student {
+  id               String   @id @default(uuid())
+  studentId        String   @unique @map("student_id")
+  firstName        String   @map("first_name")
+  lastName         String   @map("last_name")
+  email            String   @unique
+  phone            String?
+  dateOfBirth      DateTime? @map("date_of_birth")
+  enrollmentDate   DateTime? @map("enrollment_date")
+  major            String?
+  currentGpa       Float?   @map("current_gpa")
+  status           String   @default("active")
+  address          String?
+  emergencyContact String?  @map("emergency_contact")
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdById      String?  @map("created_by")
+
+  createdBy        User?           @relation("CreatedBy", fields: [createdById], references: [id])
+  academicRecords  AcademicRecord[]
+  documents        Document[]
+
+  @@index([major])
+  @@index([status])
+  @@index([currentGpa])
+  @@index([firstName, lastName])
+  @@map("students")
+}
+
+model AcademicRecord {
+  id              String   @id @default(uuid())
+  studentId       String   @map("student_id")
+  semester        String
+  year            Int
+  courseCode       String   @map("course_code")
+  courseName      String   @map("course_name")
+  grade           String
+  credits         Int
+  gpaContribution Float?   @map("gpa_contribution")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+  @@index([courseCode])
+  @@map("academic_records")
+}
+
+model Document {
+  id           String   @id @default(uuid())
+  studentId    String   @map("student_id")
+  documentType String   @map("document_type")
+  fileName     String   @map("file_name")
+  filePath     String   @map("file_path")
+  fileSize     Int      @map("file_size")
+  mimeType     String   @map("mime_type")
+  uploadedById String   @map("uploaded_by")
+  uploadedAt   DateTime @default(now()) @map("uploaded_at")
+  metadata     String?
+
+  student    Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation("UploadedBy", fields: [uploadedById], references: [id])
+
+  @@index([studentId])
+  @@map("documents")
+}
+
+model AIInteraction {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  query     String
+  response  String
+  agentType String   @map("agent_type")
+  context   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([agentType])
+  @@map("ai_interactions")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  changes    String?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
